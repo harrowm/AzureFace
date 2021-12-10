@@ -10,7 +10,7 @@
   "main": "src/index.tsx",
   "dependencies": {
     "@azure/cognitiveservices-face": "5.0.0",
-    "@azure/ms-rest-js": "2.6.0",
+    "@azure/ms-rest-azure-js": "2.1.0",
     "file-set": "5.1.2",
     "react": "17.0.2",
     "react-dom": "17.0.2",
