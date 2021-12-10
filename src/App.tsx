@@ -43,7 +43,7 @@ const client = new FaceClient(credentials, endpoint);
 console.log("cred", credentials);
 console.log("client", client);
 
-export default function App() {
+async function faceRec() {
   /**
    * DETECT FACES
    * Detects the faces in the source image, then in the target image.
@@ -55,12 +55,12 @@ export default function App() {
     returnFaceLandmarks: true
   };
 
-  let singleDetectedFace = client.face
+  let singleDetectedFace = await client.face
     .detectWithUrl(singleFaceImageUrl, options)
-    .then((face) => {
+    .then((faces) => {
       console.log("The result is: ");
-      console.log(face);
-      return face;
+      console.log(faces);
+      return faces[0].faceId;
     })
     .catch((err) => {
       console.log("An error occurred:");
@@ -68,7 +68,7 @@ export default function App() {
     });
 
   // Detect the faces in a group image. API call returns a Promise<DetectedFace[]>.
-  let groupDetectedFaces = client.face
+  let groupDetectedFaces = await client.face
     .detectWithUrl(groupImageUrl)
     .then((faces) => {
       console.log("Face IDs found in group image:");
@@ -122,6 +122,107 @@ export default function App() {
    * END - FIND SIMILAR
    */
 
+  /**
+   * VERIFY
+   * Verify-Face-To-Face: Verify whether two faces belong to a same person or
+   * whether one face belongs to a person.
+   */
+  console.log("---------------------------------");
+  console.log("VERIFY");
+
+  // Create an array to hold the target photos
+  let targetImageFileNames = ["Family1-Dad1.jpg", "Family1-Dad2.jpg"];
+  // Then declare your source photos, they'll be used to query the target images
+  let sourceImageFileNames = ["Family1-Dad3.jpg", "Family1-Son1.jpg"];
+
+  console.log("Detect faces in source images:");
+  // Detect faces in the source image array, then get their IDs
+  let sourceFaces = await Promise.all(
+    sourceImageFileNames.map(async (imageName) => {
+      // Returns a Promise<DetectedFace[]>
+      return client.face
+        .detectWithUrl(IMAGE_BASE_URL + imageName)
+        .then((faces) => {
+          console.log(
+            `${faces.length} face detected from image ${imageName} with ID ${faces[0].faceId}`
+          );
+          let id = faces[0].faceId;
+          return { id };
+        })
+        .catch((err) => {
+          console.log(`No face detected in: ${sourceImageFileNames[0]}.`);
+          throw err;
+        });
+    })
+  );
+  console.log();
+
+  // Get objects out of sourceFaces array,
+  // then get IDs and put in new array for the API call params
+  var sourceFaceIds = [];
+  for (var dict of sourceFaces) {
+    sourceFaceIds.push(dict["id"]);
+  }
+
+  console.log("Detect faces in target images:");
+  // Detect faces in the target image array, then get their IDs
+  let targetFaces = await Promise.all(
+    targetImageFileNames.map(async (imageName) => {
+      // Returns a Promise<DetectedFace[]>
+      return client.face
+        .detectWithUrl(IMAGE_BASE_URL + imageName)
+        .then((faces) => {
+          console.log(
+            `${faces.length} face detected from image ${imageName} with ID ${faces[0].faceId}`
+          );
+          let id = faces[0].faceId;
+          return { id };
+        })
+        .catch((err) => {
+          console.log(`No face detected in: ${targetImageFileNames[0]}.`);
+          throw err;
+        });
+    })
+  );
+
+  // Get objects out of targetFaces array,
+  // then get IDs and put in new array for the API call params
+  var targetFaceIds = [];
+  for (var dict of targetFaces) {
+    targetFaceIds.push(dict["id"]);
+  }
+  console.log();
+
+  // Compare all source images with a target image
+  // (target imnages are of same person, so we compare only 1 to both source images)
+  await Promise.all(
+    sourceFaceIds.map(async (sourceId) => {
+      // Returns a Promise<Verify Result>
+      return client.face
+        .verifyFaceToFace(sourceId, targetFaceIds[0])
+        .then((result) => {
+          console.log(
+            `Are image IDs \n${sourceId} and \n${targetFaceIds[0]} identical? ${result.isIdentical}`
+          );
+          // Confidence score 0.0-1.0:
+          // lower means less of a match, higher is more of a match
+          console.log(
+            `with ${Math.round(result.confidence * 100)}% confidence.`
+          );
+          console.log();
+        })
+        .catch((err) => {
+          throw err;
+        });
+    })
+  );
+  /**
+   * END - VERIFY
+   */
+}
+
+export default function App() {
+  faceRec();
   return (
     <div className="App">
       <h1>Azure Face Verification!</h1>
